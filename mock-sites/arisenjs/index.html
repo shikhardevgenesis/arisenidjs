@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Tester</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/vConsole/3.3.4/vconsole.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/arisenjs@16.0.9/lib/arisen.min.js"></script>
+    <script src="../../bundles/arisenidjs-core.min.js"></script>
+    <script src="../../bundles/arisenidjs-plugin-arisenjs.min.js"></script>
+
+    <!--<script>-->
+		<!--window.lynxMobile = {-->
+			<!--requestSetAccountName:x => {-->
+				<!--const accounts = [{-->
+					<!--name:'testaccount1',-->
+					<!--authority:'active',-->
+					<!--publicKey:'ARISEN5Jzkpde9pDNTPjyWqcHwvNkrXQma8VPV9qZ3fNu5dvZkiLEKxG',-->
+					<!--blockchain:'arisen',-->
+					<!--isHardware:false,-->
+					<!--chainId:'ARISEN5Jzkpde9pDNTPjyWqcHwvNkrXQma8VPV9qZ3fNu5dvZkiLEKxG'-->
+				<!--}];-->
+
+				<!--const identity = {-->
+					<!--name:accounts[0].name,-->
+					<!--accounts,-->
+					<!--publicKey:'ARISEN8RFgis6KAbChv89L3ibPmSH9raqN3iaFWbyLrDgmAuV3rsZ9SM'-->
+				<!--};-->
+
+				<!--ArisenidJS.arisenid.identity = identity;-->
+				<!--console.log(ArisenidJS.arisenid.identity);-->
+				<!--return identity;-->
+			<!--},-->
+			<!--requestSetAccount:name => {},-->
+			<!--requestArbitrarySignature:x => { console.log(x); },-->
+			<!--requestSignature:x => { console.log('sig', x); }-->
+		<!--};-->
+    <!--</script>-->
+    <script src="../../bundles/arisenidjs-plugin-lynx.min.js"></script>
+</head>
+<body style="padding:20px 50px;">
+
+<h1>Arisenid Basics</h1>
+
+<div id="status"></div>
+<img id="avatar" />
+<br>
+<br>
+
+<button onclick="getVersion()">Version</button>
+<button onclick="logout()">Logout</button>
+<button onclick="loginWithoutNetworks()">Login w/o Blockchain</button>
+<button onclick="login()">Login</button>
+<button onclick="loginWithRequirements()">Login with Requirements</button>
+<button onclick="loginAll()">Login All</button>
+<button onclick="getAvatar()">Get Avatar</button>
+<button onclick="updateIdentity()">Update Identity</button>
+<button onclick="authenticate()">Authenticate</button>
+<button onclick="authenticateSpecific()">Authenticate w/Params</button>
+<button onclick="hardwareCapableProofs()">Prove Ownership</button>
+<button onclick="addToken()">Add Token</button>
+<br>
+<br>
+<button onclick="hasAccountFor()">Has Account For Network</button>
+<button onclick="getPublicKey()">Get Public Key</button>
+<button onclick="linkAccount()">Link Account</button>
+<button onclick="suggestNetwork()">Suggest Network & Token</button>
+<br>
+<br>
+<button onclick="arbitrary()">Arbitrary Signature</button>
+
+<br>
+<br>
+
+<h1>ARISENIO</h1>
+
+<button onclick="transfer()">Transfer</button>
+<button onclick="stableTransfer()">Fiat/Stable-coin Transfer</button>
+<button onclick="transferWithFields()">Transfer with Fields</button>
+<button onclick="contract()">Contract</button>
+<button onclick="multi()">Multi Action Contract</button>
+<button onclick="donate()">Donate</button>
+<button onclick="donateFreely()">Donate Freely</button>
+
+<br>
+<br>
+
+<h1>Should Fail!</h1>
+<button onclick="unsignableArbitrary()">Unsignable Arbitrary</button>
+<button onclick="updateAuth()">Update Auth</button>
+<button onclick="approveMSIG()">Approve MSIG</button>
+
+<br>
+<br>
+
+<h1>Deep Link</h1>
+<p style="margin-top:-20px;">
+    Deep links will only work with a built version of Arisenid, <br>
+    not a live development version.
+</p>
+
+<a href="arisenid://transfer?payload=safetransfer/0/arisen/aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906/ramdeathtest">
+    <button>Donate with Deep Link</button>
+</a>
+
+<script>
+	// const vConsole = new VConsole({});
+
+    console.log(typeof Arisen);
+	ArisenidJS.plugins( new ArisenidARISEN(), new ArisenidLynx(Arisen) );
+
+    const network2 = ArisenidJS.Network.fromJson({
+        blockchain:'arisen',
+        chainId:'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473',
+        host:'jungle2.cryptolions.io',
+        port:80,
+        protocol:'http'
+    });
+
+   const network = ArisenidJS.Network.fromJson({
+	   blockchain:'arisen',
+	   chainId:'aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906',
+	   host:'nodes.get-arisenid.com',
+	   port:443,
+	   protocol:'https'
+   });
+
+    let arisenid, arisen;
+
+    const setStatus = () => {
+    	const status = document.getElementById('status');
+    	if(!arisenid) return status.innerText = 'No Arisenid';
+    	if(!arisenid.identity) return status.innerText = 'No Identity';
+    	status.innerText = arisenid.identity.name;
+    };
+
+    setStatus();
+    setInterval(() => {
+	    setStatus();
+    }, 1);
+
+    ArisenidJS.connect('LernaVanillaTest', {network, allowHttp:false}).then(async connected => {
+    	console.log('connected', connected);
+        if(!connected) return false;
+        arisenid = ArisenidJS.arisenid;
+        arisen = arisenid.arisen(network, Arisen);
+
+        arisenid.addEventHandler((event, payload) => {
+            console.log('app event', event, payload);
+        });
+    });
+
+    window.getVersion = async () => {
+        const version = await arisenid.getVersion();
+        console.log('version', version);
+    };
+
+    window.login = async () => {
+	    // await ArisenidJS.login();
+	    // arisen = arisenid.arisen(network, Arisen);
+
+	    ArisenidJS.connect('LernaVanillaTest', {network, allowHttp:false}).then(async connected => {
+		    console.log('connected from dapp', connected);
+		    if(!connected) return false;
+		    arisenid = ArisenidJS.arisenid;
+		    arisen = arisenid.arisen(network, Arisen);
+		    await ArisenidJS.login();
+	    });
+    };
+
+    window.loginWithoutNetworks = async () => {
+        // await arisenid.suggestNetwork(network);
+        await ArisenidJS.login({accounts:[]});
+    };
+
+    window.loginAll = async () => {
+        // await arisenid.suggestNetwork(network);
+        await ArisenidJS.suggestNetwork(network2);
+        await ArisenidJS.loginAll({
+	        personal:['firstname', 'lastname', 'email'],
+	        location:['country', 'phone', 'address'],
+	        accounts:[network]
+        });
+        console.log(ArisenidJS.identity);
+        arisen = arisenid.arisen(network, Arisen);
+    };
+
+    window.loginWithRequirements = async () => {
+        await arisenid.suggestNetwork(network);
+        await arisenid.getIdentity({
+            personal:['firstname', 'lastname', 'email'],
+            location:['country', 'phone', 'address'],
+            accounts:[network]
+        })
+        console.log(arisenid.identity);
+        arisen = arisenid.arisen(network, Arisen);
+    };
+
+    window.updateIdentity = async () => {
+        const done = await arisenid.updateIdentity({
+            name:'HelloWorld',
+        })
+        console.log('done', done);
+    };
+
+    window.getAvatar = async () => {
+        const avatar = await arisenid.getAvatar()
+        document.getElementById('avatar').src = avatar;
+    };
+
+    window.authenticate = async () => {
+    	const getRandom = () => Math.round(Math.random() * 8 + 1).toString();
+    	let randomString = '';
+    	for(let i = 0; i < 12; i++) randomString += getRandom();
+    	console.log('randomString', randomString);
+        await arisenid.authenticate(randomString).then(res => console.log('res', res)).catch(err => console.error(err));
+    };
+
+    window.authenticateSpecific = async () => {
+    	const getRandom = () => Math.round(Math.random() * 8 + 1).toString();
+    	let nonce = '';
+    	for(let i = 0; i < 12; i++) nonce += getRandom();
+	    const account = arisenid.identity.accounts.find(x => x.blockchain === 'arisen');
+
+	    // You can't use authenticate with Hardware Devices! Use the identity key in that instance.
+	    const publicKey = account.isHardware ? arisenid.identity.publicKey : account.publicKey;
+
+	    const toSign = 'helloworldiamtheonethatknocks';
+        await arisenid.authenticate(nonce, toSign, publicKey)
+            .then(res => {
+            	const {ecc} = Arisen.modules;
+            	const shaData = ecc.sha256(
+		            ecc.sha256(toSign) +
+            		ecc.sha256(nonce)
+                );
+            	const recovered = ecc.recoverHash(res, shaData);
+            	console.log('recovered?', recovered === publicKey);
+            }).catch(err => {
+            	console.log('err', err);
+            })
+    };
+
+	 window.hardwareCapableProofs = async () => {
+		 const account = arisenid.identity.accounts.find(x => x.blockchain === 'arisen');
+
+
+		 // We're going to catch a reference to the buffer
+		 let buffer;
+		 const signProvider = async buf => buffer = buf;
+
+		 // NOTICE WE ARE PUTTING THE signProvider HERE!!!!!
+		 const contract = await arisen.contract('arisenidproof', {signProvider});
+
+		 // NOTICE THE BROADCAST FALSE!!!!!!!!!!
+		 const opts = { broadcast:false, authorization:[`${account.name}@${account.authority}`] };
+
+		 const signed = await contract.prove(
+			 'now you can sign a sha256 (f0e4c2f76c58916ec258f246851bea091d14d4247a2fc3e18694461b1816e13b) or an ARISEN key: ARISEN5yhN6BBC42eLKxrNDXcQ4pbpmr3QBiroQBrEgZAVTufT3rgVXv from hardware devices',
+			 opts
+		 );
+
+		 const signature = signed.transaction.signatures[0];
+
+		 const {ecc} = Arisen.modules;
+		 const recovered = ecc.recover(signature, buffer);
+		 console.log('recovered?', recovered === account.publicKey);
+	 }
+
+	 window.updateAuth = async () => {
+		 const accounts = arisenid.identity.accounts.filter(x => x.blockchain === 'arisen');
+
+		 arisen.transaction({
+             actions:accounts.map(account => {
+             	console.log('account', account);
+	             let auth = {
+		             accounts:[],
+		             keys:[{key:'ARISEN7jdkKQLhUq9FtWZcLexS9dpYFzs9PFJNM8ydxxTPZibyqxkQva', weight:1}],
+		             threshold:1,
+		             waits:[],
+	             };
+
+             	return {
+	                account: 'arisenio',
+	                name: 'updateauth',
+	                data: {
+		                account: account.name,
+		                permission: 'active',
+                        parent:'owner',
+		                auth
+	                },
+	                authorization: [{
+		                actor:account.name,
+		                permission:account.authority
+	                }]
+                }
+             })
+         })
+
+	 }
+
+	 window.approveMSIG = async () => {
+		 const account = arisenid.identity.accounts.filter(x => x.blockchain === 'arisen')[0];
+
+
+
+		 arisen.transaction({
+			 actions: [{
+				 account: 'arisenio.msig',
+				 name: 'approve',
+				 data: {
+					 proposer:account.name,
+                     proposal_name:'test',
+                     level:{
+					 	actor:account.name,
+                         permission:account.authority
+                     }
+				 },
+				 authorization: [{
+					 actor:account.name,
+					 permission:account.authority
+				 }]
+             }]
+		 });
+	 }
+
+    window.logout = async () => {
+        await arisenid.forgetIdentity();
+    };
+
+
+    window.addToken = async () => {
+
+    	const token = ArisenidJS.Token.fromJson({
+		    blockchain:'arisen',
+            contract:'ridlridlcoin',
+            symbol:'RIDL1',
+            decimals:4
+        })
+
+        await arisenid.addToken(token);
+    };
+
+    window.transfer = async () => {
+	    const account = ArisenidJS.account('arisen');
+        const opts = { authorization:[`${account.name}@${account.authority}`], requiredFields:{} };
+        arisen.transfer(account.name, 'safetransfer', '0.0001 ARISEN', account.name, opts).then(trx => {
+            console.log('trx', trx);
+        }).catch(err => {
+//            console.error(err);
+        })
+    };
+
+    window.stableTransfer = async () => {
+	    const account = ArisenidJS.account('arisen');
+        const opts = { authorization:[`${account.name}@${account.authority}`], requiredFields:{} };
+	    arisen.contract('arisendtsttoken').then(contract => {
+		    contract.transfer(account.name, 'safetransfer', '1.0000 ARISENDT', account.name, opts).then(trx => {
+			    console.log('trx', trx);
+		    }).catch(err => {
+			    console.error(err);
+		    })
+	    })
+    };
+
+    window.transferWithFields = async () => {
+        const account = arisenid.identity.accounts.find(x => x.blockchain === 'arisen');
+        const requiredFields = {
+        	personal:['firstname', 'lastname'],
+            location:['address']
+        };
+        const opts = { authorization:[`${account.name}@${account.authority}`], requiredFields };
+        arisen.transfer(account.name, 'arisenio', '1.0000 ARISEN', '', opts).then(trx => {
+            console.log('trx', trx);
+        }).catch(err => {
+//            console.error(err);
+        })
+    };
+
+    window.donate = () => {
+        const tokenDetails = {contract:'arisenio.token', symbol:'ARISEN', memo:'testing memo field', decimals:4};
+        arisenid.requestTransfer(network, 'arisenio', '1.0000', tokenDetails).then(res => console.log(res));
+    };
+
+    window.donateFreely = () => {
+        const tokenDetails = {contract:'arisenio.token', symbol:'ARISEN', memo:'testing memo field', decimals:4};
+        arisenid.requestTransfer(network, 'arisenio', 0, tokenDetails).then(res => console.log(res));
+    };
+
+    window.contract = () => {
+        const account = arisenid.identity.accounts.find(x => x.blockchain === 'arisen');
+        const opts = { authorization:[`${account.name}@${account.authority}`] };
+        arisen.contract('wizardstoken').then(contract => {
+            contract.createwizard(opts).then(trx => {
+                console.log('trx', trx);
+            }).catch(err => {
+                console.error(err);
+            })
+        })
+    }
+
+    window.multi = () => {
+        const account = arisenid.identity.accounts.find(x => x.blockchain === 'arisen');
+        const opts = { authorization:[`${account.name}@${account.authority}`] };
+
+	    arisen
+		    .transaction(tr => {
+			    tr.newaccount({
+				    creator: account.name,
+				    name: 'arisenio',
+				    owner: account.publicKey,
+				    active: account.publicKey
+			    });
+			    tr.delegatebw(account.name, account.name, '1.0000 ARISEN', '1.0000 ARISEN', 0, opts);
+			    tr.transfer(account.name, 'arisenio', '1.0000 ARISEN', '', opts);
+		    })
+		    .then(trx => {
+			    console.log(trx.transaction_id);
+		    })
+		    .catch(err => {
+			    console.log(err);
+		    });
+    };
+
+    window.suggestNetwork = async () => {
+	    await arisenid.suggestNetwork(ArisenidJS.Network.fromJson({
+		    blockchain:'arisen',
+		    chainId:'1',
+		    host:'not-real.com',
+		    port:443,
+		    protocol:'https',
+            token:{
+                symbol:'SYS',
+                contract:'arisenio.token'
+            }
+	    })).then(res => console.log(res));
+    }
+
+    window.arbitrary = () => {
+	    const account = arisenid.identity.accounts.find(x => x.blockchain === 'arisen');
+        arisenid.getArbitrarySignature(account.publicKey, 'This should be able to be signed by anything', 'Testing', false).then(signed => {
+        	console.log('signed', signed);
+        })
+    }
+
+    window.unsignableArbitrary = () => {
+	    const account = arisenid.identity.accounts.find(x => x.blockchain === 'arisen');
+        arisenid.getArbitrarySignature(account.publicKey, 'hello_world_im_too_long_yo', 'Testing', false);
+    }
+
+	 window.hasAccountFor = () => {
+		 arisenid.hasAccountFor(network).then(res => {
+			 console.log('res', res);
+			 arisenid.hasAccountFor({ host:'not-real.com', port:80, blockchain:'arisen', chainId:'2' }).then(res => {
+				 console.log('should fail', res);
+			 }).catch(error => {
+				 console.log('should fail', error);
+			 });
+		 }).catch(error => {
+			 console.log('error', error)
+		 });
+
+	 }
+
+    let publicKey;
+    window.getPublicKey = () => {
+        arisenid.getPublicKey('arisen').then(res => {
+	        publicKey = res;
+            console.log('res', res);
+        }).catch(error => {
+        	console.log('error', error)
+        });
+    }
+
+    window.linkAccount = () => {
+
+    	const account = {
+    	    name:'hello',
+            authority:'active',
+            publicKey
+        };
+
+        arisenid.linkAccount(account, network).then(res => {
+            console.log('res', res);
+        }).catch(error => {
+        	console.log('error', error)
+        });
+    }
+
+</script>
+</body>
+</html>
